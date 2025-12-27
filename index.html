@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片点击切换生成器</title>
+  <style>
+    :root {
+      --bg: linear-gradient(135deg, #f7f8fb 0%, #eef2ff 100%);
+      --card: #ffffff;
+      --border: #e6e9f3;
+      --text: #1f2430;
+      --muted: #6c7180;
+      --accent: #5b7cfa;
+      --accent-strong: #2f54eb;
+      --shadow: 0 10px 40px rgba(44, 62, 115, 0.15);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .panel {
+      width: min(960px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0;
+      letter-spacing: 0.3px;
+    }
+
+    .hint {
+      color: var(--muted);
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .field {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      background: #f9fbff;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .file-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    input[type="file"] {
+      flex: 1;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      box-shadow: 0 10px 25px rgba(91, 124, 250, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: var(--accent-strong);
+      box-shadow: 0 12px 30px rgba(47, 84, 235, 0.35);
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .preview {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      min-height: 320px;
+      background: #f5f7fb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      cursor: pointer;
+      transition: opacity 150ms ease;
+    }
+
+    .placeholder {
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(91, 124, 250, 0.1);
+      color: var(--accent-strong);
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.2px;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 16px 10px; }
+      .panel { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <div class="header">
+      <div>
+        <div class="pill">点击图片即可切换</div>
+        <h1>双图切换演示生成器</h1>
+        <p class="hint">上传两张图片，预览点击切换效果，并导出独立的 HTM 文件以便复制到任意编辑器。</p>
+      </div>
+    </div>
+
+    <section class="field">
+      <label>选择两张图片</label>
+      <div class="file-box">
+        <span>图片 A</span>
+        <input type="file" accept="image/*" id="fileA">
+      </div>
+      <div class="status" id="statusA">未选择</div>
+      <div class="file-box" style="margin-top: 10px;">
+        <span>图片 B</span>
+        <input type="file" accept="image/*" id="fileB">
+      </div>
+      <div class="status" id="statusB">未选择</div>
+      <div class="actions">
+        <button id="resetBtn" class="secondary">重置</button>
+        <button id="exportBtn" disabled>导出 HTM</button>
+      </div>
+      <p class="hint" style="margin-top: 10px;">提示：上传后直接点击右侧预览即可切换；导出的文件包含图片的 Base64 数据，可在离线环境中打开。</p>
+    </section>
+
+    <section class="preview" id="preview">
+      <div class="placeholder">
+        将两张图片拖拽或选择到左侧，然后点击预览图片切换。
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const fileA = document.getElementById("fileA");
+    const fileB = document.getElementById("fileB");
+    const statusA = document.getElementById("statusA");
+    const statusB = document.getElementById("statusB");
+    const preview = document.getElementById("preview");
+    const resetBtn = document.getElementById("resetBtn");
+    const exportBtn = document.getElementById("exportBtn");
+
+    let dataA = "";
+    let dataB = "";
+    let showingA = true;
+
+    const readFile = (input, cb) => {
+      const file = input.files?.[0];
+      if (!file) return cb("");
+      const reader = new FileReader();
+      reader.onload = () => cb(reader.result);
+      reader.readAsDataURL(file);
+    };
+
+    const refreshPreview = () => {
+      preview.innerHTML = "";
+      if (!dataA || !dataB) {
+        preview.innerHTML = '<div class="placeholder">需要两张图片才能预览点击切换效果。</div>';
+        exportBtn.disabled = true;
+        return;
+      }
+      const img = document.createElement("img");
+      img.src = showingA ? dataA : dataB;
+      img.alt = "点击切换图片";
+      img.addEventListener("click", () => {
+        showingA = !showingA;
+        img.style.opacity = 0.5;
+        setTimeout(() => {
+          img.src = showingA ? dataA : dataB;
+          img.style.opacity = 1;
+        }, 80);
+      });
+      preview.appendChild(img);
+      exportBtn.disabled = false;
+    };
+
+    const updateStatuses = () => {
+      statusA.textContent = dataA ? "已选择：" + (fileA.files?.[0]?.name || "图片 A") : "未选择";
+      statusB.textContent = dataB ? "已选择：" + (fileB.files?.[0]?.name || "图片 B") : "未选择";
+    };
+
+    const reset = () => {
+      dataA = "";
+      dataB = "";
+      showingA = true;
+      fileA.value = "";
+      fileB.value = "";
+      updateStatuses();
+      refreshPreview();
+    };
+
+    const buildExportHTML = () => {
+      const safeA = dataA;
+      const safeB = dataB;
+      return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片点击切换</title>
+  <style>
+    body { margin:0; display:flex; align-items:center; justify-content:center; min-height:100vh; background:#0f172a; }
+    img { max-width:90vw; max-height:90vh; object-fit:contain; cursor:pointer; transition:opacity .12s ease; box-shadow:0 20px 60px rgba(0,0,0,.35); border-radius:14px; }
+  </style>
+</head>
+<body>
+  <img id="viewer" src="${safeA}" alt="点击切换图片">
+  <script>
+    const a = "${safeA}";
+    const b = "${safeB}";
+    let showA = true;
+    const img = document.getElementById("viewer");
+    img.addEventListener("click", () => {
+      showA = !showA;
+      img.style.opacity = 0.5;
+      setTimeout(() => {
+        img.src = showA ? a : b;
+        img.style.opacity = 1;
+      }, 80);
+    });
+  </script>
+</body>
+</html>`;
+    };
+
+    const triggerDownload = () => {
+      const blob = new Blob([buildExportHTML()], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "toggle-image.htm";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    fileA.addEventListener("change", () => {
+      readFile(fileA, (result) => {
+        dataA = result || "";
+        showingA = true;
+        updateStatuses();
+        refreshPreview();
+      });
+    });
+
+    fileB.addEventListener("change", () => {
+      readFile(fileB, (result) => {
+        dataB = result || "";
+        showingA = true;
+        updateStatuses();
+        refreshPreview();
+      });
+    });
+
+    resetBtn.addEventListener("click", reset);
+    exportBtn.addEventListener("click", () => {
+      if (!dataA || !dataB) return;
+      triggerDownload();
+    });
+
+    // 初始状态
+    refreshPreview();
+  </script>
+</body>
+</html>
