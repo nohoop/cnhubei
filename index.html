@@ -277,6 +277,7 @@
     const buildExportHTML = () => {
       const safeA = dataA;
       const safeB = dataB;
+      // 注意：内嵌的 </script> 需要转义，防止主页面脚本被截断
       return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -303,7 +304,7 @@
         img.style.opacity = 1;
       }, 80);
     });
-  </script>
+  <\/script>
 </body>
 </html>`;
     };
