@@ -1,0 +1,456 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>找不同小游园</title>
+  <style>
+    :root {
+      --sky: #e6f3ff;
+      --grass: #b0f2c2;
+      --sun: #ffc857;
+      --berry: #ff7a9e;
+      --ink: #1f2430;
+      --mint: #4bc9b0;
+      --lavender: #9c8bff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Nunito", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 20% 20%, #fdf3ff 0, #f4f8ff 35%, #e9fbff 100%);
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 1rem;
+      color: #3a4252;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      margin: 22px 0;
+    }
+
+    @media (min-width: 900px) {
+      .panels {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .panel label {
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #2f3b51;
+    }
+
+    .scene-wrapper {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 3px solid #e0e8ff;
+      box-shadow: 0 12px 30px rgba(47, 59, 81, 0.12);
+      background: #fff;
+      isolation: isolate;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .hotspot {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 2px dashed #ffb8d4;
+      background: rgba(255, 184, 212, 0.12);
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: all 150ms ease;
+      outline: none;
+    }
+
+    .hotspot.hidden {
+      opacity: 0;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .hotspot.hidden::after {
+      display: none;
+    }
+
+    .hotspot::after {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      background: rgba(255, 184, 212, 0.25);
+      animation: pulse 1.3s infinite ease-in-out;
+    }
+
+    .hotspot:focus-visible {
+      box-shadow: 0 0 0 4px rgba(75, 201, 176, 0.35);
+    }
+
+    .hotspot:hover {
+      border-color: #ff92bd;
+      transform: translate(-50%, -50%) scale(1.03);
+    }
+
+    .hotspot.found {
+      background: rgba(75, 201, 176, 0.15);
+      border-color: var(--mint);
+    }
+
+    .hotspot.found::after {
+      background: rgba(75, 201, 176, 0.28);
+      animation: none;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .status-text {
+      padding: 10px 14px;
+      background: #fff;
+      border-radius: 12px;
+      border: 2px solid #e0e8ff;
+      box-shadow: 0 8px 18px rgba(47, 59, 81, 0.08);
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .status-text span {
+      color: var(--lavender);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button.cta {
+      background: linear-gradient(120deg, #ffa8c7, #ffc857);
+      color: #1e2340;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 10px 20px rgba(255, 168, 199, 0.35);
+    }
+
+    button.cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px rgba(255, 168, 199, 0.45);
+    }
+
+    .note {
+      margin-top: 4px;
+      color: #4f5a72;
+      font-size: 0.95rem;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>沙滩找不同 · 新关卡</h1>
+      <p>左边和右边的沙滩图有 5 处不一样，点一下一圈圈框住它们，全部找完会有祝贺提示！</p>
+    </header>
+
+    <section class="panels">
+      <div class="panel">
+        <label>左边的图</label>
+        <div class="scene-wrapper" id="scene-left">
+          <svg viewBox="0 0 420 280" aria-label="左边的彩色小公园">
+            <defs>
+              <linearGradient id="skyA" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#dff1ff" />
+                <stop offset="100%" stop-color="#cce9ff" />
+              </linearGradient>
+              <linearGradient id="seaA" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#7ad8ff" />
+                <stop offset="100%" stop-color="#4cb6f3" />
+              </linearGradient>
+            </defs>
+            <rect width="420" height="280" fill="url(#skyA)" />
+            <rect y="150" width="420" height="70" fill="url(#seaA)" />
+            <rect y="210" width="420" height="70" fill="#f9e4b7" />
+
+            <circle cx="70" cy="60" r="34" fill="#ffc857" />
+            <g stroke="#ffc857" stroke-width="6" stroke-linecap="round">
+              <line x1="70" y1="14" x2="70" y2="32" />
+              <line x1="70" y1="88" x2="70" y2="108" />
+              <line x1="26" y1="60" x2="46" y2="60" />
+              <line x1="94" y1="60" x2="114" y2="60" />
+            </g>
+            <rect x="56" y="56" width="28" height="10" rx="4" fill="#1f2430" />
+            <rect x="54" y="60" width="6" height="4" rx="2" fill="#1f2430" />
+            <rect x="84" y="60" width="6" height="4" rx="2" fill="#1f2430" />
+
+            <g fill="#f6fbff" opacity="0.95">
+              <ellipse cx="220" cy="70" rx="40" ry="18" />
+              <ellipse cx="250" cy="70" rx="34" ry="15" />
+              <ellipse cx="190" cy="92" rx="38" ry="17" />
+            </g>
+
+            <g>
+              <path d="M40 188 C120 170 220 170 320 188 L320 200 L40 200 Z" fill="#f6e0ac" />
+              <path d="M50 182 Q120 160 180 170 T330 184" stroke="#f3d28b" stroke-width="6" fill="none" />
+            </g>
+
+            <g transform="translate(100 188)">
+              <rect x="0" y="32" width="46" height="20" rx="4" fill="#f2c14f" />
+              <rect x="10" y="-4" width="26" height="38" rx="6" fill="#ff7a9e" />
+              <rect x="2" y="-6" width="42" height="10" rx="4" fill="#6ec9ff" />
+              <path d="M5 10 L23 14" stroke="#f9e4b7" stroke-width="3" />
+              <polygon points="15,6 21,10 9,12" fill="#ffd7e6" />
+            </g>
+
+            <g transform="translate(180 210)">
+              <circle cx="0" cy="26" r="20" fill="#6ec9ff" />
+              <path d="M-18 26 A18 18 0 0 1 18 26" stroke="#ffb8d4" stroke-width="8" fill="none" />
+              <path d="M0 8 L6 22 L22 18 Z" fill="#ffc857" />
+            </g>
+
+            <g transform="translate(300 150)">
+              <line x1="0" y1="60" x2="0" y2="140" stroke="#d08770" stroke-width="6" />
+              <path d="M0 62 Q40 40 80 62 Q40 70 0 62 Z" fill="#ff92bd" />
+              <path d="M0 80 Q32 70 64 80 Q32 90 0 80 Z" fill="#6ec9ff" />
+              <path d="M0 98 Q32 92 64 98 Q32 106 0 98 Z" fill="#ffc857" />
+            </g>
+
+            <g transform="translate(40 124)">
+              <polygon points="0,40 26,24 52,40 52,52 0,52" fill="#ffb8d4" />
+              <rect x="20" y="10" width="12" height="14" fill="#ffc857" />
+              <rect x="24" y="-6" width="4" height="16" fill="#6ec9ff" />
+              <polygon points="24,-6 26,-16 28,-6" fill="#ff92bd" />
+            </g>
+
+            <g transform="translate(220 154)">
+              <path d="M0 24 C24 14 44 14 68 24 L68 28 C44 34 24 34 0 28 Z" fill="#a2d9ff" />
+              <rect x="28" y="0" width="12" height="24" fill="#f2c14f" />
+              <polygon points="34,-12 44,0 24,0" fill="#ff7a9e" />
+              <circle cx="12" cy="16" r="3" fill="#fff" />
+              <circle cx="56" cy="18" r="3" fill="#fff" />
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="panel">
+        <label>右边的图</label>
+        <div class="scene-wrapper" id="scene-right">
+          <svg viewBox="0 0 420 280" aria-label="右边的彩色小公园">
+            <defs>
+              <linearGradient id="skyB" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#dff1ff" />
+                <stop offset="100%" stop-color="#cce9ff" />
+              </linearGradient>
+              <linearGradient id="seaB" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#7ad8ff" />
+                <stop offset="100%" stop-color="#4cb6f3" />
+              </linearGradient>
+            </defs>
+            <rect width="420" height="280" fill="url(#skyB)" />
+            <rect y="150" width="420" height="70" fill="url(#seaB)" />
+            <rect y="210" width="420" height="70" fill="#f9e4b7" />
+
+            <circle cx="70" cy="60" r="34" fill="#ffc857" />
+            <g stroke="#ffc857" stroke-width="6" stroke-linecap="round">
+              <line x1="70" y1="14" x2="70" y2="32" />
+              <line x1="70" y1="88" x2="70" y2="108" />
+              <line x1="26" y1="60" x2="46" y2="60" />
+              <line x1="94" y1="60" x2="114" y2="60" />
+            </g>
+
+            <g fill="#f6fbff" opacity="0.95">
+              <ellipse cx="220" cy="70" rx="40" ry="18" />
+              <ellipse cx="250" cy="70" rx="34" ry="15" />
+            </g>
+
+            <g>
+              <path d="M40 188 C120 170 220 170 320 188 L320 200 L40 200 Z" fill="#f6e0ac" />
+              <path d="M50 182 Q120 160 180 170 T330 184" stroke="#f3d28b" stroke-width="6" fill="none" />
+            </g>
+
+            <g transform="translate(100 188)">
+              <rect x="0" y="32" width="46" height="20" rx="4" fill="#f2c14f" />
+              <rect x="10" y="-4" width="26" height="38" rx="6" fill="#ff7a9e" />
+              <rect x="2" y="-6" width="42" height="10" rx="4" fill="#6ec9ff" />
+            </g>
+
+            <g transform="translate(180 210)">
+              <circle cx="0" cy="26" r="20" fill="#6ec9ff" />
+              <path d="M-18 26 A18 18 0 0 1 18 26" stroke="#ffb8d4" stroke-width="8" fill="none" />
+            </g>
+
+            <g transform="translate(300 150)">
+              <line x1="0" y1="60" x2="0" y2="140" stroke="#d08770" stroke-width="6" />
+              <path d="M0 62 Q40 40 80 62 Q40 70 0 62 Z" fill="#ffc857" />
+              <path d="M0 80 Q32 70 64 80 Q32 90 0 80 Z" fill="#f2c14f" />
+              <path d="M0 98 Q32 92 64 98 Q32 106 0 98 Z" fill="#6ec9ff" />
+            </g>
+
+            <g transform="translate(40 124)">
+              <polygon points="0,40 26,24 52,40 52,52 0,52" fill="#ffb8d4" />
+              <rect x="20" y="10" width="12" height="14" fill="#ffc857" />
+              <rect x="24" y="-6" width="4" height="16" fill="#ff7a9e" />
+              <polygon points="24,-6 26,-16 28,-6" fill="#6ec9ff" />
+            </g>
+
+            <g transform="translate(220 154)">
+              <path d="M0 24 C24 14 44 14 68 24 L68 28 C44 34 24 34 0 28 Z" fill="#a2d9ff" />
+              <rect x="28" y="0" width="12" height="24" fill="#f2c14f" />
+              <polygon points="34,-12 44,0 24,0" fill="#6ec9ff" />
+              <circle cx="12" cy="16" r="3" fill="#fff" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <div class="status-row">
+      <div class="status-text">已经找到 <span id="found-count">0</span> / 5 处不同</div>
+      <div class="actions">
+        <button class="cta" id="reset-btn" type="button">再玩一次</button>
+        <button class="cta" id="answer-btn" type="button">显示答案圈圈</button>
+      </div>
+    </div>
+    <p class="note">提示：圈圈可以点两边，新关卡的答案和上一次不一样哦。</p>
+  </main>
+
+  <script>
+    const differences = [
+      { id: "sun-glasses", x: 18, y: 20, hint: "太阳戴墨镜了吗？" },
+      { id: "cloud-missing", x: 55, y: 32, hint: "天空的云朵数量" },
+      { id: "umbrella-color", x: 78, y: 58, hint: "遮阳伞的颜色" },
+      { id: "ball-star", x: 45, y: 78, hint: "沙滩球上的小星星" },
+      { id: "bucket-star", x: 30, y: 76, hint: "小水桶上有没有星星" },
+    ];
+
+    const found = new Set();
+    const countEl = document.querySelector("#found-count");
+    const resetBtn = document.querySelector("#reset-btn");
+    const answerBtn = document.querySelector("#answer-btn");
+    const leftScene = document.querySelector("#scene-left");
+    const rightScene = document.querySelector("#scene-right");
+
+    function createHotspots(wrapper) {
+      differences.forEach((diff) => {
+        const dot = document.createElement("button");
+        dot.className = "hotspot hidden";
+        dot.type = "button";
+        dot.dataset.id = diff.id;
+        dot.title = diff.hint;
+        dot.style.left = diff.x + "%";
+        dot.style.top = diff.y + "%";
+        dot.addEventListener("click", () => markFound(diff.id));
+        wrapper.appendChild(dot);
+      });
+    }
+
+    function markFound(id) {
+      if (found.has(id)) return;
+      found.add(id);
+      document.querySelectorAll('.hotspot[data-id="' + id + '"]').forEach((el) => {
+        el.classList.remove("hidden");
+        el.classList.add("found");
+      });
+      countEl.textContent = found.size.toString();
+      if (found.size === differences.length) {
+        celebrate();
+      }
+    }
+
+    function showAnswers() {
+      document.querySelectorAll(".hotspot").forEach((el) => {
+        if (!el.classList.contains("found")) {
+          el.classList.remove("hidden");
+        }
+      });
+    }
+
+    function celebrate() {
+      const confetti = document.createElement("div");
+      confetti.textContent = "太棒啦！全部找到了 🎉";
+      confetti.style.position = "fixed";
+      confetti.style.left = "50%";
+      confetti.style.top = "18px";
+      confetti.style.transform = "translateX(-50%)";
+      confetti.style.padding = "12px 18px";
+      confetti.style.borderRadius = "14px";
+      confetti.style.background = "linear-gradient(120deg, #4bc9b0, #ffc857)";
+      confetti.style.color = "#1f2430";
+      confetti.style.fontWeight = "800";
+      confetti.style.boxShadow = "0 12px 30px rgba(47, 59, 81, 0.25)";
+      confetti.style.zIndex = "20";
+      document.body.appendChild(confetti);
+      setTimeout(() => confetti.remove(), 1800);
+    }
+
+    function resetGame() {
+      found.clear();
+      countEl.textContent = "0";
+      document.querySelectorAll(".hotspot").forEach((el) => {
+        el.classList.remove("found");
+        el.classList.add("hidden");
+      });
+    }
+
+    createHotspots(leftScene);
+    createHotspots(rightScene);
+    resetBtn.addEventListener("click", resetGame);
+    answerBtn.addEventListener("click", showAnswers);
+  </script>
+</body>
+</html>
