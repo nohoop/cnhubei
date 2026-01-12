@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文字转语音</title>
+  <style>
+    :root {
+      --bg: linear-gradient(135deg, #0f172a, #1f2937);
+      --card: #0b1222;
+      --accent: #f97316;
+      --accent-strong: #fb923c;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Helvetica Neue", "PingFang SC", "Noto Sans SC", "Segoe UI", system-ui, -apple-system, sans-serif;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(900px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+      font-size: 15px;
+      resize: vertical;
+      outline: none;
+      transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea:focus {
+      border-color: rgba(249, 115, 22, 0.7);
+      box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .control {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    select, input[type="range"] {
+      width: 100%;
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      height: 6px;
+      accent-color: var(--accent);
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    button {
+      flex: 1 1 120px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(249, 115, 22, 0.08);
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, border 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(249, 115, 22, 0.6);
+      box-shadow: 0 12px 24px rgba(249, 115, 22, 0.15);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #0b1222;
+      border: none;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <header>
+      <h1>文字转语音</h1>
+      <span class="subtitle">输入任意文字，让浏览器朗读</span>
+    </header>
+
+    <textarea id="text" placeholder="在这里输入要朗读的内容"></textarea>
+
+    <div class="controls">
+      <div class="control">
+        <label for="voice">发音人</label>
+        <select id="voice"></select>
+      </div>
+      <div class="control">
+        <label for="rate">语速 <span id="rateValue">1.0x</span></label>
+        <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+      </div>
+      <div class="control">
+        <label for="pitch">音调 <span id="pitchValue">1.0</span></label>
+        <input type="range" id="pitch" min="0.5" max="2" step="0.1" value="1">
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="speak" class="primary">开始朗读</button>
+      <button id="pause" disabled>暂停</button>
+      <button id="resume" disabled>继续</button>
+      <button id="stop" disabled>停止</button>
+    </div>
+
+    <div class="status" id="status">等待输入文本</div>
+  </main>
+
+  <script>
+    const textEl = document.getElementById('text');
+    const voiceEl = document.getElementById('voice');
+    const rateEl = document.getElementById('rate');
+    const pitchEl = document.getElementById('pitch');
+    const rateValueEl = document.getElementById('rateValue');
+    const pitchValueEl = document.getElementById('pitchValue');
+    const statusEl = document.getElementById('status');
+    const speakBtn = document.getElementById('speak');
+    const pauseBtn = document.getElementById('pause');
+    const resumeBtn = document.getElementById('resume');
+    const stopBtn = document.getElementById('stop');
+
+    let voices = [];
+    let currentUtterance = null;
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function populateVoices() {
+      voices = speechSynthesis.getVoices();
+      voiceEl.innerHTML = '';
+
+      voices.forEach((voice, index) => {
+        const option = document.createElement('option');
+        const langTag = voice.lang ? ` (${voice.lang})` : '';
+        option.value = index;
+        option.textContent = `${voice.name}${langTag}`;
+        voiceEl.appendChild(option);
+      });
+
+      // Prefer a Chinese voice if available.
+      const preferredIndex = voices.findIndex(v => /^zh/i.test(v.lang));
+      voiceEl.value = preferredIndex >= 0 ? preferredIndex : 0;
+    }
+
+    function ensureSupport() {
+      if (!('speechSynthesis' in window)) {
+        setStatus('当前浏览器不支持语音合成功能，请换用 Chrome / Edge / Safari。');
+        speakBtn.disabled = true;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = true;
+        return false;
+      }
+      return true;
+    }
+
+    function resetButtons() {
+      speakBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
+      stopBtn.disabled = true;
+    }
+
+    function handleSpeak() {
+      if (!ensureSupport()) return;
+      const text = textEl.value.trim();
+      if (!text) {
+        setStatus('请输入要朗读的文字');
+        return;
+      }
+
+      // Cancel any existing speech before starting a new one.
+      speechSynthesis.cancel();
+      currentUtterance = new SpeechSynthesisUtterance(text);
+      currentUtterance.rate = parseFloat(rateEl.value);
+      currentUtterance.pitch = parseFloat(pitchEl.value);
+
+      const selectedVoice = voices[voiceEl.value];
+      if (selectedVoice) currentUtterance.voice = selectedVoice;
+
+      currentUtterance.onstart = () => {
+        speakBtn.disabled = true;
+        pauseBtn.disabled = false;
+        stopBtn.disabled = false;
+        setStatus('正在朗读...');
+      };
+
+      currentUtterance.onend = () => {
+        resetButtons();
+        setStatus('朗读完成');
+      };
+
+      currentUtterance.onerror = () => {
+        resetButtons();
+        setStatus('朗读出现问题，请重试');
+      };
+
+      speechSynthesis.speak(currentUtterance);
+    }
+
+    function handlePause() {
+      if (speechSynthesis.speaking && !speechSynthesis.paused) {
+        speechSynthesis.pause();
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = false;
+        setStatus('已暂停');
+      }
+    }
+
+    function handleResume() {
+      if (speechSynthesis.paused) {
+        speechSynthesis.resume();
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+        setStatus('继续朗读');
+      }
+    }
+
+    function handleStop() {
+      if (speechSynthesis.speaking || speechSynthesis.paused) {
+        speechSynthesis.cancel();
+        resetButtons();
+        setStatus('已停止');
+      }
+    }
+
+    voiceEl.addEventListener('change', () => setStatus('发音人已切换'));
+    rateEl.addEventListener('input', () => {
+      rateValueEl.textContent = `${parseFloat(rateEl.value).toFixed(1)}x`;
+    });
+    pitchEl.addEventListener('input', () => {
+      pitchValueEl.textContent = parseFloat(pitchEl.value).toFixed(1);
+    });
+
+    speakBtn.addEventListener('click', handleSpeak);
+    pauseBtn.addEventListener('click', handlePause);
+    resumeBtn.addEventListener('click', handleResume);
+    stopBtn.addEventListener('click', handleStop);
+
+    // Load voices; some browsers populate asynchronously.
+    if (ensureSupport()) {
+      populateVoices();
+      window.speechSynthesis.onvoiceschanged = populateVoices;
+    }
+  </script>
+</body>
+</html>

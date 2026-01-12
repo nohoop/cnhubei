@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>双图切换 · 预览与导出</title>
+  <style>
+    :root {
+      --bg: radial-gradient(circle at 20% 20%, #27324d 0%, #0d152b 40%, #060b18 100%);
+      --card: rgba(255, 255, 255, 0.08);
+      --card-strong: rgba(255, 255, 255, 0.14);
+      --text: #ecf0ff;
+      --muted: #c7cce2;
+      --border: rgba(255, 255, 255, 0.14);
+      --accent: #7cc0ff;
+      --accent-strong: #9fd6ff;
+      --shadow: 0 40px 80px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "SF Pro Display", "SF Pro Text", "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 18px 44px;
+    }
+    .shell {
+      width: min(1180px, 100%);
+      background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      padding: 30px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .tag {
+      display: inline-flex;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(124, 192, 255, 0.14);
+      color: var(--accent-strong);
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      font-size: 13px;
+    }
+    h1 { margin: 8px 0 6px; font-size: 26px; letter-spacing: 0.2px; }
+    .sub { margin: 0; color: var(--muted); font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      transition: border 120ms ease, background 120ms ease;
+    }
+    .card:hover { border-color: var(--accent); background: var(--card-strong); }
+    .section-title { margin: 0 0 12px; font-size: 16px; letter-spacing: 0.1px; }
+    .file-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .badge { padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.12); color: var(--text); font-weight: 700; }
+    .input-wrap {
+      flex: 1;
+      background: rgba(255,255,255,0.06);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+    }
+    input[type="file"] { flex: 1; color: var(--text); }
+    .status { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+    .hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    button {
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-weight: 700;
+      color: #0b1224;
+      background: linear-gradient(135deg, #9fd6ff, #7bc0ff);
+      box-shadow: 0 14px 28px rgba(124, 192, 255, 0.3);
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+    button.secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+    }
+    .preview {
+      min-height: 360px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+      border-radius: 18px;
+      border: 1px dashed var(--border);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      cursor: pointer;
+      position: absolute;
+      transition: opacity 180ms ease;
+      filter: drop-shadow(0 20px 50px rgba(0,0,0,0.32));
+    }
+    .placeholder {
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 22px; right: 22px;
+      padding: 12px 16px;
+      background: rgba(15, 195, 115, 0.12);
+      border: 1px solid rgba(15, 195, 115, 0.35);
+      color: #8ff0c5;
+      border-radius: 12px;
+      box-shadow: 0 16px 32px rgba(0,0,0,0.25);
+      opacity: 0; transform: translateY(10px);
+      transition: all 180ms ease;
+      pointer-events: none;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 768px) {
+      .shell { padding: 22px; border-radius: 22px; }
+      .preview { min-height: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="header">
+      <div>
+        <span class="tag">点击预览即可切换</span>
+        <h1>双图切换 · 预览与导出</h1>
+        <p class="sub">上传两张图片，实时预览切换效果，并一键复制或导出离线 HTML。</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h3 class="section-title">选择两张图片</h3>
+        <div class="file-row">
+          <span class="badge">图片 A</span>
+          <label class="input-wrap">
+            <input type="file" accept="image/*" id="fileA">
+          </label>
+        </div>
+        <p class="status" id="statusA">未选择</p>
+
+        <div class="file-row">
+          <span class="badge">图片 B</span>
+          <label class="input-wrap">
+            <input type="file" accept="image/*" id="fileB">
+          </label>
+        </div>
+        <p class="status" id="statusB">未选择</p>
+
+        <div class="actions">
+          <button id="resetBtn" class="secondary">重置</button>
+          <button id="copyBtn" class="secondary" disabled>复制导出代码</button>
+          <button id="exportBtn" disabled>导出 HTM</button>
+        </div>
+        <p class="hint">提示：上传后点击右侧预览即可切换；导出的文件会内嵌图片 Base64，可离线打开。</p>
+      </section>
+
+      <section class="card preview" id="preview">
+        <div class="placeholder">将两张图片拖拽或选择到左侧，然后点击预览图片切换。</div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">已复制到剪贴板</div>
+
+  <script>
+    const fileA = document.getElementById('fileA');
+    const fileB = document.getElementById('fileB');
+    const statusA = document.getElementById('statusA');
+    const statusB = document.getElementById('statusB');
+    const preview = document.getElementById('preview');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const toast = document.getElementById('toast');
+
+    let dataA = '';
+    let dataB = '';
+    let showingA = true;
+
+    const showToast = (msg) => {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1400);
+    };
+
+    const readFile = (input, cb) => {
+      const file = input.files?.[0];
+      if (!file) return cb('');
+      const reader = new FileReader();
+      reader.onload = () => cb(reader.result);
+      reader.readAsDataURL(file);
+    };
+
+    const updateStatuses = () => {
+      statusA.textContent = dataA ? '已选择：' + (fileA.files?.[0]?.name || '图片 A') : '未选择';
+      statusB.textContent = dataB ? '已选择：' + (fileB.files?.[0]?.name || '图片 B') : '未选择';
+    };
+
+    const renderPreview = () => {
+      preview.innerHTML = '';
+      if (!dataA || !dataB) {
+        exportBtn.disabled = true;
+        copyBtn.disabled = true;
+        preview.innerHTML = '<div class="placeholder">将两张图片拖拽或选择到左侧，然后点击预览图片切换。</div>';
+        return;
+      }
+      exportBtn.disabled = false;
+      copyBtn.disabled = false;
+      const imgA = document.createElement('img');
+      const imgB = document.createElement('img');
+      imgA.src = dataA;
+      imgB.src = dataB;
+      imgA.style.opacity = showingA ? '1' : '0';
+      imgB.style.opacity = showingA ? '0' : '1';
+      imgA.style.zIndex = 2; imgB.style.zIndex = 1;
+      const switcher = () => {
+        showingA = !showingA;
+        imgA.style.opacity = showingA ? '1' : '0';
+        imgB.style.opacity = showingA ? '0' : '1';
+      };
+      imgA.addEventListener('click', switcher);
+      imgB.addEventListener('click', switcher);
+      preview.appendChild(imgA);
+      preview.appendChild(imgB);
+    };
+
+    const reset = () => {
+      dataA = '';
+      dataB = '';
+      showingA = true;
+      fileA.value = '';
+      fileB.value = '';
+      updateStatuses();
+      renderPreview();
+    };
+
+    const buildExportHTML = () => {
+      const safeA = dataA;
+      const safeB = dataB;
+      return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片点击切换</title>
+  <style>
+    body { margin:0; display:flex; align-items:center; justify-content:center; min-height:100vh; background:#0b1224; }
+    img { max-width:90vw; max-height:90vh; object-fit:contain; cursor:pointer; transition:opacity .16s ease; box-shadow:0 22px 60px rgba(0,0,0,.35); border-radius:16px; }
+  </style>
+</head>
+<body>
+  <img id="viewer" src="${safeA}" alt="点击切换图片">
+  <script>
+    const a = "${safeA}";
+    const b = "${safeB}";
+    let showA = true;
+    const img = document.getElementById('viewer');
+    img.addEventListener('click', () => {
+      showA = !showA;
+      img.style.opacity = 0.55;
+      setTimeout(() => {
+        img.src = showA ? a : b;
+        img.style.opacity = 1;
+      }, 90);
+    });
+  <\/script>
+</body>
+</html>`;
+    };
+
+    const triggerDownload = () => {
+      const blob = new Blob([buildExportHTML()], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'toggle-image.htm';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
+    const copyExport = async () => {
+      try {
+        await navigator.clipboard.writeText(buildExportHTML());
+        showToast('导出代码已复制');
+      } catch (e) {
+        showToast('复制失败，请检查权限');
+      }
+    };
+
+    fileA.addEventListener('change', () => {
+      readFile(fileA, (result) => {
+        dataA = result || '';
+        showingA = true;
+        updateStatuses();
+        renderPreview();
+      });
+    });
+    fileB.addEventListener('change', () => {
+      readFile(fileB, (result) => {
+        dataB = result || '';
+        showingA = true;
+        updateStatuses();
+        renderPreview();
+      });
+    });
+
+    resetBtn.addEventListener('click', reset);
+    exportBtn.addEventListener('click', () => { if (dataA && dataB) triggerDownload(); });
+    copyBtn.addEventListener('click', () => { if (dataA && dataB) copyExport(); });
+
+    // 初始
+    renderPreview();
+  </script>
+</body>
+</html>

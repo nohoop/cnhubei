@@ -1,0 +1,698 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>找不同小游园</title>
+  <style>
+    :root {
+      --sky: #e6f3ff;
+      --grass: #b0f2c2;
+      --sun: #ffc857;
+      --berry: #ff7a9e;
+      --ink: #1f2430;
+      --mint: #4bc9b0;
+      --lavender: #9c8bff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Nunito", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 20% 20%, #fdf3ff 0, #f4f8ff 35%, #e9fbff 100%);
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 1rem;
+      color: #3a4252;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      margin: 22px 0;
+    }
+
+    @media (min-width: 900px) {
+      .panels {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .panel label {
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #2f3b51;
+    }
+
+    .scene-wrapper {
+      position: relative;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 3px solid #e0e8ff;
+      box-shadow: 0 12px 30px rgba(47, 59, 81, 0.12);
+      background: #fff;
+      isolation: isolate;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .hotspot {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 2px dashed #ffb8d4;
+      background: rgba(255, 184, 212, 0.12);
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: all 150ms ease;
+      outline: none;
+    }
+
+    .hotspot.hidden {
+      opacity: 0;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .hotspot.hidden::after {
+      display: none;
+    }
+
+    .hotspot::after {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      background: rgba(255, 184, 212, 0.25);
+      animation: pulse 1.3s infinite ease-in-out;
+    }
+
+    .hotspot:focus-visible {
+      box-shadow: 0 0 0 4px rgba(75, 201, 176, 0.35);
+    }
+
+    .hotspot:hover {
+      border-color: #ff92bd;
+      transform: translate(-50%, -50%) scale(1.03);
+    }
+
+    .hotspot.found {
+      background: rgba(75, 201, 176, 0.15);
+      border-color: var(--mint);
+    }
+
+    .hotspot.found::after {
+      background: rgba(75, 201, 176, 0.28);
+      animation: none;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .status-text {
+      padding: 10px 14px;
+      background: #fff;
+      border-radius: 12px;
+      border: 2px solid #e0e8ff;
+      box-shadow: 0 8px 18px rgba(47, 59, 81, 0.08);
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .status-text span {
+      color: var(--lavender);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button.cta {
+      background: linear-gradient(120deg, #ffa8c7, #ffc857);
+      color: #1e2340;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 10px 20px rgba(255, 168, 199, 0.35);
+    }
+
+    button.cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px rgba(255, 168, 199, 0.45);
+    }
+
+    .note {
+      margin-top: 4px;
+      color: #4f5a72;
+      font-size: 0.95rem;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>找不同乐园</h1>
+      <p id="level-desc">左边和右边有 5 处不一样，点一下一圈圈框住它们，全部找完会有祝贺提示！</p>
+    </header>
+
+    <section class="panels">
+      <div class="panel">
+        <label>左边的图</label>
+        <div class="scene-wrapper" id="scene-left"></div>
+      </div>
+
+      <div class="panel">
+        <label>右边的图</label>
+        <div class="scene-wrapper" id="scene-right"></div>
+      </div>
+    </section>
+
+    <div class="status-row">
+      <div class="status-text">已经找到 <span id="found-count">0</span> / 5 处不同</div>
+      <div class="actions">
+        <button class="cta" id="reset-btn" type="button">再玩一次</button>
+        <button class="cta" id="switch-btn" type="button">换一关</button>
+        <button class="cta" id="answer-btn" type="button">显示答案圈圈</button>
+      </div>
+    </div>
+    <p class="note">提示：圈圈可以点两边，换一关后也会换一组答案。</p>
+  </main>
+
+  <script>
+    const levelDescEl = document.querySelector("#level-desc");
+    const levels = [
+      {
+        name: "沙滩派对",
+        desc: "沙滩上一共有 5 处不一样，看看太阳、云朵、遮阳伞和小玩具吧。",
+        leftSvg: `
+          <svg viewBox="0 0 420 280" aria-label="沙滩左图">
+            <defs>
+              <linearGradient id="skyA" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#dff1ff" />
+                <stop offset="100%" stop-color="#cce9ff" />
+              </linearGradient>
+              <linearGradient id="seaA" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#7ad8ff" />
+                <stop offset="100%" stop-color="#4cb6f3" />
+              </linearGradient>
+            </defs>
+            <rect width="420" height="280" fill="url(#skyA)" />
+            <rect y="150" width="420" height="70" fill="url(#seaA)" />
+            <rect y="210" width="420" height="70" fill="#f9e4b7" />
+            <circle cx="70" cy="60" r="34" fill="#ffc857" />
+            <g stroke="#ffc857" stroke-width="6" stroke-linecap="round">
+              <line x1="70" y1="14" x2="70" y2="32" />
+              <line x1="70" y1="88" x2="70" y2="108" />
+              <line x1="26" y1="60" x2="46" y2="60" />
+              <line x1="94" y1="60" x2="114" y2="60" />
+            </g>
+            <rect x="56" y="56" width="28" height="10" rx="4" fill="#1f2430" />
+            <rect x="54" y="60" width="6" height="4" rx="2" fill="#1f2430" />
+            <rect x="84" y="60" width="6" height="4" rx="2" fill="#1f2430" />
+            <g fill="#f6fbff" opacity="0.95">
+              <ellipse cx="220" cy="70" rx="40" ry="18" />
+              <ellipse cx="250" cy="70" rx="34" ry="15" />
+              <ellipse cx="190" cy="92" rx="38" ry="17" />
+            </g>
+            <g>
+              <path d="M40 188 C120 170 220 170 320 188 L320 200 L40 200 Z" fill="#f6e0ac" />
+              <path d="M50 182 Q120 160 180 170 T330 184" stroke="#f3d28b" stroke-width="6" fill="none" />
+            </g>
+            <g transform="translate(100 188)">
+              <rect x="0" y="32" width="46" height="20" rx="4" fill="#f2c14f" />
+              <rect x="10" y="-4" width="26" height="38" rx="6" fill="#ff7a9e" />
+              <rect x="2" y="-6" width="42" height="10" rx="4" fill="#6ec9ff" />
+              <path d="M5 10 L23 14" stroke="#f9e4b7" stroke-width="3" />
+              <polygon points="15,6 21,10 9,12" fill="#ffd7e6" />
+            </g>
+            <g transform="translate(180 210)">
+              <circle cx="0" cy="26" r="20" fill="#6ec9ff" />
+              <path d="M-18 26 A18 18 0 0 1 18 26" stroke="#ffb8d4" stroke-width="8" fill="none" />
+              <path d="M0 8 L6 22 L22 18 Z" fill="#ffc857" />
+            </g>
+            <g transform="translate(300 150)">
+              <line x1="0" y1="60" x2="0" y2="140" stroke="#d08770" stroke-width="6" />
+              <path d="M0 62 Q40 40 80 62 Q40 70 0 62 Z" fill="#ff92bd" />
+              <path d="M0 80 Q32 70 64 80 Q32 90 0 80 Z" fill="#6ec9ff" />
+              <path d="M0 98 Q32 92 64 98 Q32 106 0 98 Z" fill="#ffc857" />
+            </g>
+            <g transform="translate(40 124)">
+              <polygon points="0,40 26,24 52,40 52,52 0,52" fill="#ffb8d4" />
+              <rect x="20" y="10" width="12" height="14" fill="#ffc857" />
+              <rect x="24" y="-6" width="4" height="16" fill="#6ec9ff" />
+              <polygon points="24,-6 26,-16 28,-6" fill="#ff92bd" />
+            </g>
+            <g transform="translate(220 154)">
+              <path d="M0 24 C24 14 44 14 68 24 L68 28 C44 34 24 34 0 28 Z" fill="#a2d9ff" />
+              <rect x="28" y="0" width="12" height="24" fill="#f2c14f" />
+              <polygon points="34,-12 44,0 24,0" fill="#ff7a9e" />
+              <circle cx="12" cy="16" r="3" fill="#fff" />
+              <circle cx="56" cy="18" r="3" fill="#fff" />
+            </g>
+          </svg>
+        `,
+        rightSvg: `
+          <svg viewBox="0 0 420 280" aria-label="沙滩右图">
+            <defs>
+              <linearGradient id="skyB" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#dff1ff" />
+                <stop offset="100%" stop-color="#cce9ff" />
+              </linearGradient>
+              <linearGradient id="seaB" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#7ad8ff" />
+                <stop offset="100%" stop-color="#4cb6f3" />
+              </linearGradient>
+            </defs>
+            <rect width="420" height="280" fill="url(#skyB)" />
+            <rect y="150" width="420" height="70" fill="url(#seaB)" />
+            <rect y="210" width="420" height="70" fill="#f9e4b7" />
+            <circle cx="70" cy="60" r="34" fill="#ffc857" />
+            <g stroke="#ffc857" stroke-width="6" stroke-linecap="round">
+              <line x1="70" y1="14" x2="70" y2="32" />
+              <line x1="70" y1="88" x2="70" y2="108" />
+              <line x1="26" y1="60" x2="46" y2="60" />
+              <line x1="94" y1="60" x2="114" y2="60" />
+            </g>
+            <g fill="#f6fbff" opacity="0.95">
+              <ellipse cx="220" cy="70" rx="40" ry="18" />
+              <ellipse cx="250" cy="70" rx="34" ry="15" />
+            </g>
+            <g>
+              <path d="M40 188 C120 170 220 170 320 188 L320 200 L40 200 Z" fill="#f6e0ac" />
+              <path d="M50 182 Q120 160 180 170 T330 184" stroke="#f3d28b" stroke-width="6" fill="none" />
+            </g>
+            <g transform="translate(100 188)">
+              <rect x="0" y="32" width="46" height="20" rx="4" fill="#f2c14f" />
+              <rect x="10" y="-4" width="26" height="38" rx="6" fill="#ff7a9e" />
+              <rect x="2" y="-6" width="42" height="10" rx="4" fill="#6ec9ff" />
+            </g>
+            <g transform="translate(180 210)">
+              <circle cx="0" cy="26" r="20" fill="#6ec9ff" />
+              <path d="M-18 26 A18 18 0 0 1 18 26" stroke="#ffb8d4" stroke-width="8" fill="none" />
+            </g>
+            <g transform="translate(300 150)">
+              <line x1="0" y1="60" x2="0" y2="140" stroke="#d08770" stroke-width="6" />
+              <path d="M0 62 Q40 40 80 62 Q40 70 0 62 Z" fill="#ffc857" />
+              <path d="M0 80 Q32 70 64 80 Q32 90 0 80 Z" fill="#f2c14f" />
+              <path d="M0 98 Q32 92 64 98 Q32 106 0 98 Z" fill="#6ec9ff" />
+            </g>
+            <g transform="translate(40 124)">
+              <polygon points="0,40 26,24 52,40 52,52 0,52" fill="#ffb8d4" />
+              <rect x="20" y="10" width="12" height="14" fill="#ffc857" />
+              <rect x="24" y="-6" width="4" height="16" fill="#ff7a9e" />
+              <polygon points="24,-6 26,-16 28,-6" fill="#6ec9ff" />
+            </g>
+            <g transform="translate(220 154)">
+              <path d="M0 24 C24 14 44 14 68 24 L68 28 C44 34 24 34 0 28 Z" fill="#a2d9ff" />
+              <rect x="28" y="0" width="12" height="24" fill="#f2c14f" />
+              <polygon points="34,-12 44,0 24,0" fill="#6ec9ff" />
+              <circle cx="12" cy="16" r="3" fill="#fff" />
+            </g>
+          </svg>
+        `,
+        differences: [
+          { id: "sun-glasses", x: 17, y: 22, hint: "太阳戴墨镜了吗？" },
+          { id: "cloud-missing", x: 55, y: 26, hint: "天空的云朵数量" },
+          { id: "umbrella-color", x: 79, y: 61, hint: "遮阳伞的颜色" },
+          { id: "ball-star", x: 43, y: 84, hint: "沙滩球上的小星星" },
+          { id: "bucket-star", x: 15, y: 42, hint: "小水桶上有没有星星" },
+        ],
+      },
+      {
+        name: "森林篝火夜",
+        desc: "晚上小森林里有 5 处不一样，看看月亮、蘑菇、营火和小动物吧。",
+        leftSvg: `
+          <svg viewBox="0 0 420 280" aria-label="森林夜左图">
+            <rect width="420" height="280" fill="#0f1c2d" />
+            <circle cx="70" cy="60" r="26" fill="#ffe9a9" />
+            <rect y="180" width="420" height="100" fill="#234036" />
+            <rect y="200" width="420" height="80" fill="#2f5745" />
+            <g fill="#ffffff55">
+              <circle cx="160" cy="60" r="2" />
+              <circle cx="200" cy="40" r="2" />
+              <circle cx="240" cy="70" r="2" />
+              <circle cx="280" cy="52" r="2" />
+              <circle cx="320" cy="38" r="2" />
+            </g>
+            <g transform="translate(70 150)">
+              <rect x="30" y="30" width="16" height="80" fill="#6b4a2b" />
+              <circle cx="38" cy="28" r="28" fill="#3da87c" />
+              <circle cx="20" cy="40" r="20" fill="#3a926e" />
+              <circle cx="56" cy="40" r="20" fill="#43b28a" />
+            </g>
+            <g transform="translate(160 156)">
+              <rect x="40" y="24" width="16" height="86" fill="#6b4a2b" />
+              <circle cx="48" cy="24" r="26" fill="#58c7b1" />
+              <circle cx="30" cy="40" r="18" fill="#4aa68f" />
+              <circle cx="64" cy="40" r="18" fill="#5ad1bb" />
+              <circle cx="48" cy="12" r="12" fill="#479f86" />
+            </g>
+            <g transform="translate(250 144)">
+              <rect x="50" y="36" width="16" height="100" fill="#6b4a2b" />
+              <circle cx="58" cy="36" r="30" fill="#4ebc9b" />
+              <circle cx="36" cy="48" r="18" fill="#43a386" />
+              <circle cx="78" cy="46" r="20" fill="#5ed4b4" />
+              <path d="M64 60 Q70 68 80 72" stroke="#2d5c4a" stroke-width="4" fill="none" />
+            </g>
+            <g transform="translate(120 198)">
+              <polygon points="40,10 70,50 10,50" fill="#ffb86b" />
+              <path d="M40 32 Q38 46 46 64" stroke="#ff6f61" stroke-width="6" />
+              <path d="M40 30 Q36 48 28 64" stroke="#ffb8d4" stroke-width="6" />
+              <polygon points="26,64 54,64 40,80 12,80" fill="#a15b3f" />
+            </g>
+            <g transform="translate(46 214)">
+              <ellipse cx="40" cy="40" rx="28" ry="16" fill="#d9f1ff" />
+              <circle cx="32" cy="36" r="4" fill="#0f1c2d" />
+              <circle cx="48" cy="36" r="4" fill="#0f1c2d" />
+              <path d="M32 42 Q40 46 48 42" stroke="#0f1c2d" stroke-width="3" />
+              <path d="M20 34 Q18 24 12 20" stroke="#d9f1ff" stroke-width="4" />
+              <path d="M60 34 Q64 26 70 22" stroke="#d9f1ff" stroke-width="4" />
+            </g>
+          </svg>
+        `,
+        rightSvg: `
+          <svg viewBox="0 0 420 280" aria-label="森林夜右图">
+            <rect width="420" height="280" fill="#0f1c2d" />
+            <circle cx="70" cy="60" r="26" fill="#ffe9a9" />
+            <rect y="180" width="420" height="100" fill="#234036" />
+            <rect y="200" width="420" height="80" fill="#2f5745" />
+            <g fill="#ffffff55">
+              <circle cx="160" cy="60" r="2" />
+              <circle cx="200" cy="40" r="2" />
+              <circle cx="240" cy="70" r="2" />
+              <circle cx="280" cy="52" r="2" />
+            </g>
+            <g transform="translate(70 150)">
+              <rect x="30" y="30" width="16" height="80" fill="#6b4a2b" />
+              <circle cx="38" cy="28" r="28" fill="#3da87c" />
+              <circle cx="20" cy="40" r="20" fill="#3a926e" />
+              <circle cx="56" cy="40" r="20" fill="#43b28a" />
+            </g>
+            <g transform="translate(160 156)">
+              <rect x="40" y="24" width="16" height="86" fill="#6b4a2b" />
+              <circle cx="48" cy="24" r="26" fill="#58c7b1" />
+              <circle cx="30" cy="40" r="18" fill="#4aa68f" />
+              <circle cx="64" cy="40" r="18" fill="#5ad1bb" />
+            </g>
+            <g transform="translate(250 144)">
+              <rect x="50" y="36" width="16" height="100" fill="#6b4a2b" />
+              <circle cx="58" cy="36" r="30" fill="#4ebc9b" />
+              <circle cx="36" cy="48" r="18" fill="#43a386" />
+              <circle cx="78" cy="46" r="20" fill="#5ed4b4" />
+            </g>
+            <g transform="translate(120 198)">
+              <polygon points="40,10 70,50 10,50" fill="#ffb86b" />
+              <path d="M40 32 Q38 46 46 64" stroke="#ff6f61" stroke-width="6" />
+              <path d="M40 30 Q36 48 28 64" stroke="#ffb8d4" stroke-width="6" />
+              <polygon points="26,64 54,64 40,80 12,80" fill="#a15b3f" />
+            </g>
+            <g transform="translate(46 214)">
+              <ellipse cx="40" cy="40" rx="28" ry="16" fill="#d9f1ff" />
+              <circle cx="32" cy="36" r="4" fill="#0f1c2d" />
+              <path d="M20 34 Q18 24 12 20" stroke="#d9f1ff" stroke-width="4" />
+              <path d="M60 34 Q64 26 70 22" stroke="#d9f1ff" stroke-width="4" />
+            </g>
+          </svg>
+        `,
+        differences: [
+          { id: "falling-star", x: 75, y: 18, hint: "天上少了一颗星" },
+          { id: "tree-leaf", x: 63, y: 46, hint: "最右边的树叶形状" },
+          { id: "campfire-spark", x: 32, y: 72, hint: "营火旁的火花" },
+          { id: "mushroom-eye", x: 19, y: 80, hint: "小蘑菇的眼睛" },
+          { id: "moon-shadow", x: 17, y: 24, hint: "月亮上有没有阴影" },
+        ],
+      },
+      {
+        name: "城市游乐园",
+        desc: "城市公园里也藏了 5 处不同，注意摩天轮、车车、气球和云朵。",
+        leftSvg: `
+          <svg viewBox="0 0 420 280" aria-label="城市公园左图">
+            <defs>
+              <linearGradient id="skyC1" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#f3f6ff" />
+                <stop offset="100%" stop-color="#dfeaff" />
+              </linearGradient>
+            </defs>
+            <rect width="420" height="280" fill="url(#skyC1)" />
+            <rect y="190" width="420" height="90" fill="#c5f0d7" />
+            <rect y="210" width="420" height="70" fill="#a8e3c4" />
+            <g fill="#fff">
+              <ellipse cx="80" cy="60" rx="34" ry="16" />
+              <ellipse cx="110" cy="66" rx="26" ry="14" />
+              <ellipse cx="280" cy="50" rx="38" ry="16" />
+              <ellipse cx="310" cy="56" rx="30" ry="14" />
+            </g>
+            <g>
+              <rect x="40" y="120" width="40" height="70" fill="#6ec9ff" />
+              <rect x="90" y="100" width="50" height="90" fill="#8dd6b0" />
+              <rect x="150" y="110" width="42" height="80" fill="#ffb8d4" />
+              <rect x="210" y="90" width="52" height="100" fill="#a6b8ff" />
+              <rect x="274" y="110" width="44" height="80" fill="#ffc857" />
+              <rect x="328" y="100" width="38" height="90" fill="#8dd6b0" />
+            </g>
+            <g transform="translate(90 184)">
+              <line x1="120" y1="0" x2="120" y2="64" stroke="#6ec9ff" stroke-width="6" />
+              <line x1="120" y1="0" x2="170" y2="50" stroke="#6ec9ff" stroke-width="4" />
+              <line x1="120" y1="0" x2="70" y2="50" stroke="#6ec9ff" stroke-width="4" />
+              <circle cx="120" cy="0" r="20" fill="#ff7a9e" />
+              <circle cx="170" cy="50" r="16" fill="#ffc857" />
+              <circle cx="70" cy="50" r="16" fill="#8dd6b0" />
+              <circle cx="120" cy="64" r="20" fill="#a6b8ff" />
+            </g>
+            <g transform="translate(46 212)">
+              <rect x="0" y="10" width="70" height="18" rx="6" fill="#1f2430" />
+              <rect x="6" y="-2" width="46" height="16" rx="6" fill="#ff7a9e" />
+              <circle cx="16" cy="30" r="9" fill="#ffc857" />
+              <circle cx="52" cy="30" r="9" fill="#ffc857" />
+            </g>
+            <g transform="translate(280 206)">
+              <rect x="0" y="8" width="46" height="10" rx="4" fill="#1f2430" />
+              <rect x="10" y="-10" width="26" height="18" rx="4" fill="#6ec9ff" />
+              <rect x="6" y="18" width="34" height="10" rx="4" fill="#ffb8d4" />
+              <circle cx="12" cy="34" r="8" fill="#ffc857" />
+              <circle cx="34" cy="34" r="8" fill="#ffc857" />
+            </g>
+            <g transform="translate(210 156)">
+              <rect x="0" y="36" width="70" height="46" rx="8" fill="#ffdb91" />
+              <polygon points="35,0 70,40 0,40" fill="#ff7a9e" />
+              <circle cx="16" cy="60" r="5" fill="#1f2430" />
+              <circle cx="54" cy="60" r="5" fill="#1f2430" />
+            </g>
+          </svg>
+        `,
+        rightSvg: `
+          <svg viewBox="0 0 420 280" aria-label="城市公园右图">
+            <defs>
+              <linearGradient id="skyC2" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#f3f6ff" />
+                <stop offset="100%" stop-color="#dfeaff" />
+              </linearGradient>
+            </defs>
+            <rect width="420" height="280" fill="url(#skyC2)" />
+            <rect y="190" width="420" height="90" fill="#c5f0d7" />
+            <rect y="210" width="420" height="70" fill="#a8e3c4" />
+            <g fill="#fff">
+              <ellipse cx="80" cy="60" rx="34" ry="16" />
+              <ellipse cx="280" cy="50" rx="38" ry="16" />
+              <ellipse cx="310" cy="56" rx="30" ry="14" />
+            </g>
+            <g>
+              <rect x="40" y="120" width="40" height="70" fill="#6ec9ff" />
+              <rect x="90" y="100" width="50" height="90" fill="#8dd6b0" />
+              <rect x="150" y="110" width="42" height="80" fill="#ffb8d4" />
+              <rect x="210" y="90" width="52" height="100" fill="#a6b8ff" />
+              <rect x="274" y="110" width="44" height="80" fill="#ffc857" />
+              <rect x="328" y="100" width="38" height="90" fill="#8dd6b0" />
+            </g>
+            <g transform="translate(90 184)">
+              <line x1="120" y1="0" x2="120" y2="64" stroke="#6ec9ff" stroke-width="6" />
+              <line x1="120" y1="0" x2="170" y2="50" stroke="#6ec9ff" stroke-width="4" />
+              <line x1="120" y1="0" x2="70" y2="50" stroke="#6ec9ff" stroke-width="4" />
+              <circle cx="120" cy="0" r="20" fill="#ff7a9e" />
+              <circle cx="170" cy="50" r="16" fill="#ffc857" />
+              <circle cx="70" cy="50" r="16" fill="#8dd6b0" />
+              <circle cx="120" cy="64" r="20" fill="#a6b8ff" />
+            </g>
+            <g transform="translate(46 212)">
+              <rect x="0" y="10" width="70" height="18" rx="6" fill="#1f2430" />
+              <rect x="6" y="-2" width="46" height="16" rx="6" fill="#ff7a9e" />
+              <circle cx="16" cy="30" r="9" fill="#ffc857" />
+              <circle cx="52" cy="30" r="9" fill="#ffc857" />
+            </g>
+            <g transform="translate(280 206)">
+              <rect x="0" y="8" width="46" height="10" rx="4" fill="#1f2430" />
+              <rect x="10" y="-10" width="26" height="18" rx="4" fill="#6ec9ff" />
+              <rect x="6" y="18" width="34" height="10" rx="4" fill="#ffb8d4" />
+              <circle cx="12" cy="34" r="8" fill="#ffc857" />
+              <circle cx="34" cy="34" r="8" fill="#ffc857" />
+            </g>
+            <g transform="translate(210 156)">
+              <rect x="0" y="36" width="70" height="46" rx="8" fill="#ffdb91" />
+              <polygon points="35,0 70,40 0,40" fill="#6ec9ff" />
+              <circle cx="16" cy="60" r="5" fill="#1f2430" />
+              <circle cx="54" cy="60" r="5" fill="#1f2430" />
+            </g>
+          </svg>
+        `,
+        differences: [
+          { id: "cloud-gone", x: 28, y: 22, hint: "左上云朵数量" },
+          { id: "ferris-color", x: 53, y: 64, hint: "摩天轮顶端颜色" },
+          { id: "car-window", x: 18, y: 78, hint: "小车窗户有无" },
+          { id: "balloon", x: 72, y: 54, hint: "云边的气球" },
+          { id: "house-roof", x: 57, y: 64, hint: "小屋屋顶颜色变化" },
+        ],
+      },
+    ];
+
+    let differences = [];
+    const found = new Set();
+    const countEl = document.querySelector("#found-count");
+    const resetBtn = document.querySelector("#reset-btn");
+    const answerBtn = document.querySelector("#answer-btn");
+    const switchBtn = document.querySelector("#switch-btn");
+    const leftScene = document.querySelector("#scene-left");
+    const rightScene = document.querySelector("#scene-right");
+    let currentLevel = 0;
+
+    function createHotspots(wrapper) {
+      differences.forEach((diff) => {
+        const dot = document.createElement("button");
+        dot.className = "hotspot hidden";
+        dot.type = "button";
+        dot.dataset.id = diff.id;
+        dot.title = diff.hint;
+        dot.style.left = diff.x + "%";
+        dot.style.top = diff.y + "%";
+        dot.addEventListener("click", () => markFound(diff.id));
+        wrapper.appendChild(dot);
+      });
+    }
+
+    function markFound(id) {
+      if (found.has(id)) return;
+      found.add(id);
+      document.querySelectorAll('.hotspot[data-id="' + id + '"]').forEach((el) => {
+        el.classList.remove("hidden");
+        el.classList.add("found");
+      });
+      countEl.textContent = found.size.toString();
+      if (found.size === differences.length) {
+        celebrate();
+      }
+    }
+
+    function loadLevel(index) {
+      currentLevel = index;
+      const level = levels[currentLevel];
+      levelDescEl.textContent = `${level.name}：${level.desc}`;
+      leftScene.innerHTML = level.leftSvg;
+      rightScene.innerHTML = level.rightSvg;
+      differences = level.differences;
+      document.querySelectorAll(".hotspot").forEach((el) => el.remove());
+      resetGame();
+      createHotspots(leftScene);
+      createHotspots(rightScene);
+    }
+
+    function switchLevel() {
+      let next = Math.floor(Math.random() * levels.length);
+      if (levels.length > 1 && next === currentLevel) {
+        next = (next + 1) % levels.length;
+      }
+      loadLevel(next);
+    }
+
+    function showAnswers() {
+      document.querySelectorAll(".hotspot").forEach((el) => {
+        if (!el.classList.contains("found")) {
+          el.classList.remove("hidden");
+        }
+      });
+    }
+
+    function celebrate() {
+      const confetti = document.createElement("div");
+      confetti.textContent = "太棒啦！全部找到了 🎉";
+      confetti.style.position = "fixed";
+      confetti.style.left = "50%";
+      confetti.style.top = "18px";
+      confetti.style.transform = "translateX(-50%)";
+      confetti.style.padding = "12px 18px";
+      confetti.style.borderRadius = "14px";
+      confetti.style.background = "linear-gradient(120deg, #4bc9b0, #ffc857)";
+      confetti.style.color = "#1f2430";
+      confetti.style.fontWeight = "800";
+      confetti.style.boxShadow = "0 12px 30px rgba(47, 59, 81, 0.25)";
+      confetti.style.zIndex = "20";
+      document.body.appendChild(confetti);
+      setTimeout(() => confetti.remove(), 1800);
+    }
+
+    function resetGame() {
+      found.clear();
+      countEl.textContent = "0";
+      document.querySelectorAll(".hotspot").forEach((el) => {
+        el.classList.remove("found");
+        el.classList.add("hidden");
+      });
+    }
+
+    loadLevel(0);
+    resetBtn.addEventListener("click", resetGame);
+    answerBtn.addEventListener("click", showAnswers);
+    switchBtn.addEventListener("click", switchLevel);
+  </script>
+</body>
+</html>
